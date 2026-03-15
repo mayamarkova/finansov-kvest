@@ -20,23 +20,46 @@ interface LeaderboardEntry {
   date: string
 }
 
-// ============ LOCAL STORAGE ============
-const STORAGE_KEY = 'finmath_leaderboard'
+// ============ GOOGLE SHEETS API ============
+// ВАЖНО: Замени този URL с твоя Google Apps Script URL (виж SETUP_GUIDE.md)
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbnx9t6oe8rF3OQRlll0xQVbwaWeKO3D8pnfpK9-iJGdgBLpI1FMT5pWTNDrYw_4f30w/exec'
 
-function getLeaderboard(): LeaderboardEntry[] {
+async function getLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
-    const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : []
-  } catch {
+    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=get`)
+    const data = await res.json()
+    if (Array.isArray(data)) {
+      return data.sort((a: LeaderboardEntry, b: LeaderboardEntry) => b.score - a.score)
+    }
     return []
+  } catch {
+    // Fallback to localStorage if Google Sheets is unavailable
+    try {
+      const local = localStorage.getItem('finmath_leaderboard')
+      return local ? JSON.parse(local) : []
+    } catch {
+      return []
+    }
   }
 }
 
-function saveToLeaderboard(entry: LeaderboardEntry) {
-  const lb = getLeaderboard()
-  lb.push(entry)
-  lb.sort((a, b) => b.score - a.score)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lb))
+async function saveToLeaderboard(entry: LeaderboardEntry): Promise<void> {
+  try {
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    })
+  } catch {
+    // Fallback: save locally if Google Sheets fails
+  }
+  // Always also save locally as backup
+  try {
+    const lb = JSON.parse(localStorage.getItem('finmath_leaderboard') || '[]')
+    lb.push(entry)
+    localStorage.setItem('finmath_leaderboard', JSON.stringify(lb))
+  } catch { /* ignore */ }
 }
 
 // ============ CONFETTI COMPONENT ============
@@ -633,9 +656,14 @@ function LeaderboardScreen({
   onBack: () => void
 }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setEntries(getLeaderboard())
+    setLoading(true)
+    getLeaderboard().then((data) => {
+      setEntries(data)
+      setLoading(false)
+    })
   }, [])
 
   const medals = ['🥇', '🥈', '🥉']
@@ -654,7 +682,12 @@ function LeaderboardScreen({
           <div className="w-8" />
         </div>
 
-        {entries.length === 0 ? (
+        {loading ? (
+          <div className="text-center mt-20">
+            <div className="text-5xl mb-4 animate-bounce-slow">⏳</div>
+            <p className="text-gray-400 text-lg">Зареждане...</p>
+          </div>
+        ) : entries.length === 0 ? (
           <div className="text-center mt-20">
             <div className="text-5xl mb-4">🏜️</div>
             <p className="text-gray-400 text-lg">Все още няма играчи.</p>
@@ -941,7 +974,7 @@ export default function App() {
     }
 
     if (currentLevel + 1 >= levels.length) {
-      // Game complete - save to leaderboard
+      // Game complete - save to leaderboard (async, fire and forget)
       saveToLeaderboard({
         name: playerName,
         score,
