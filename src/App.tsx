@@ -867,9 +867,16 @@ function ProgramInfoScreen({ onBack }: { onBack: () => void }) {
             <p className="text-gray-300 text-sm mb-3">
               Научи повече за приема и условията за кандидатстване. Говори с нашия екип тук, на Деня на отворените врати!
             </p>
-            <p className="text-gray-400 text-xs">
-              📧 uni@uni-ruse.bg • 🌐 uni-ruse.bg
-            </p>
+            href="https://www.uni-ruse.bg/Departments/PMS/finansovamatematika#form_data"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="inline-block mt-2 py-2 px-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold text-sm rounded-xl hover:scale-105 active:scale-95 transition-all duration-200"
+>
+  👉 Кандидатствай онлайн
+</a>
+<p className="text-gray-400 text-xs mt-2">
+  📧 vmicheva@uni-ruse.bg • 🌐 uni-ruse.bg
+</p>
           </div>
         </div>
 
